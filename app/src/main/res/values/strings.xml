@@ -1,3 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Android Task</string>
+    <string name="app_name">Hypermarket</string>
+    <string name="search">Search</string>
+    <string name="type">Type:</string>
+    <string name="price">Price:</string>
+    <string name="message_start_typing">Start typing in search bar to see products.</string>
+    <string name="no_products_found">No products found for this search.</string>
+    <string name="error_occurred">Sorry, there is an error occurred.</string>
 </resources>
