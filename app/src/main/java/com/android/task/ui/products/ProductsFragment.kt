@@ -3,7 +3,7 @@ package com.android.task.ui.products
 import android.os.Bundle
 import android.util.Log
 import android.view.*
-import android.widget.SearchView
+import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -13,10 +13,11 @@ import com.android.task.data.repository.ProductsRepository
 import com.android.task.databinding.FragmentProductsBinding
 import com.android.task.helpers.VerticalRecyclerViewMargin
 import com.google.gson.Gson
-import com.jakewharton.rxbinding4.widget.queryTextChanges
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.schedulers.Schedulers
+import io.reactivex.rxjava3.subjects.PublishSubject
 import java.util.concurrent.TimeUnit
 
 /**
@@ -71,6 +72,23 @@ class ProductsFragment : Fragment() {
         return fragmentBinding.root
     }
 
+    private fun observeSearchView(searchView: SearchView): Observable<String> {
+        val subject = PublishSubject.create<String>()
+
+        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                return true
+            }
+
+            override fun onQueryTextChange(newText: String?): Boolean {
+                subject.onNext(newText)
+                return true
+            }
+        })
+
+        return subject
+    }
+
     override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
         super.onCreateOptionsMenu(menu, inflater)
 
@@ -80,7 +98,7 @@ class ProductsFragment : Fragment() {
 
         val searchView = searchItem.actionView as SearchView
 
-        val queryDisposable = searchView.queryTextChanges()
+        val queryDisposable = observeSearchView(searchView)
             .skip(1)
             .debounce(500, TimeUnit.MILLISECONDS)
             .map { charSequence ->
