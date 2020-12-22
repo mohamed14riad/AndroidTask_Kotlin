@@ -125,6 +125,7 @@ class ProductsFragment : Fragment() {
                     }
                     else -> {
                         fragmentBinding.loadingIndicator.visibility = View.VISIBLE
+                        activity!!.window.addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
 
                         val responseSingle = productsRepository.searchProductsAPI(
                             query, offset, limit
@@ -141,6 +142,7 @@ class ProductsFragment : Fragment() {
 
                                 lastSearchResponse = searchResponse
 
+                                activity!!.window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
                                 fragmentBinding.loadingIndicator.visibility = View.GONE
                                 fragmentBinding.tvMessageStartTyping.visibility = View.GONE
                                 fragmentBinding.tvErrorMessage.visibility = View.GONE
@@ -161,6 +163,7 @@ class ProductsFragment : Fragment() {
                             }, { e: Throwable? ->
                                 Log.e(TAG, "onCreateOptionsMenu: ", e)
 
+                                activity!!.window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
                                 fragmentBinding.loadingIndicator.visibility = View.GONE
                                 fragmentBinding.tvMessageStartTyping.visibility = View.GONE
                                 fragmentBinding.rvProducts.visibility = View.GONE
@@ -218,6 +221,7 @@ class ProductsFragment : Fragment() {
 
     private fun getMoreProducts(query: String) {
         fragmentBinding.loadingIndicator.visibility = View.VISIBLE
+        activity!!.window.addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
 
         val responseSingle = productsRepository.searchProductsAPI(
             query, offset, limit
@@ -228,6 +232,7 @@ class ProductsFragment : Fragment() {
                 Log.d(TAG, "getMoreProducts: searchResponse = " + Gson().toJson(searchResponse))
 
                 fragmentBinding.loadingIndicator.visibility = View.GONE
+                activity!!.window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
 
                 lastSearchResponse = searchResponse
 
@@ -248,6 +253,7 @@ class ProductsFragment : Fragment() {
                 Log.e(TAG, "getMoreProducts: ", e)
 
                 fragmentBinding.loadingIndicator.visibility = View.GONE
+                activity!!.window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
             })
         compositeDisposable.add(disposable)
     }
