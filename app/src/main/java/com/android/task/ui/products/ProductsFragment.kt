@@ -56,9 +56,7 @@ class ProductsFragment : Fragment() {
         productsRepository = ProductsRepository(activity!!)
         productsAdapter = ProductsAdapter(activity!!)
 
-        val decoration = VerticalRecyclerViewMargin(24, 1)
-
-        fragmentBinding.rvProducts.addItemDecoration(decoration)
+        fragmentBinding.rvProducts.addItemDecoration(VerticalRecyclerViewMargin(24, 1))
         fragmentBinding.rvProducts.layoutManager =
             LinearLayoutManager(activity, RecyclerView.VERTICAL, false)
         fragmentBinding.rvProducts.adapter = productsAdapter
@@ -101,75 +99,89 @@ class ProductsFragment : Fragment() {
         val queryDisposable = observeSearchView(searchView)
             .skip(1)
             .debounce(500, TimeUnit.MILLISECONDS)
-            .map { charSequence ->
+            .map { query ->
                 offset = 0
-                charSequence?.toString()?.trim()?.toLowerCase() ?: ""
+                query?.trim()?.toLowerCase() ?: ""
             }
             .subscribeOn(AndroidSchedulers.mainThread())
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe({ query: String ->
-                fragmentBinding.loadingIndicator.visibility = View.VISIBLE
 
-                val responseObservable = productsRepository.searchProducts(
-                    query, offset, limit
-                )
-                val disposable = responseObservable.subscribeOn(Schedulers.io())
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe({ searchResponse: SearchResponse ->
-                        Log.d(
-                            TAG,
-                            "onCreateOptionsMenu: searchResponse = " + Gson().toJson(searchResponse)
-                        )
-
+                when {
+                    query.isEmpty() -> {
                         fragmentBinding.loadingIndicator.visibility = View.GONE
+                        fragmentBinding.tvMessageStartTyping.visibility = View.VISIBLE
+                        fragmentBinding.tvErrorMessage.visibility = View.GONE
+                        fragmentBinding.rvProducts.visibility = View.GONE
+                        fragmentBinding.fabScrollTop.visibility = View.GONE
+                    }
+                    query.length <= 2 -> {
+                        fragmentBinding.loadingIndicator.visibility = View.GONE
+                        fragmentBinding.tvMessageStartTyping.visibility = View.GONE
+                        fragmentBinding.rvProducts.visibility = View.GONE
+                        fragmentBinding.fabScrollTop.visibility = View.GONE
+                        fragmentBinding.tvErrorMessage.visibility = View.VISIBLE
+                        fragmentBinding.tvErrorMessage.setText(R.string.no_products_found)
+                    }
+                    else -> {
+                        fragmentBinding.loadingIndicator.visibility = View.VISIBLE
 
-                        lastSearchResponse = searchResponse
+                        val responseSingle = productsRepository.searchProductsAPI(
+                            query, offset, limit
+                        )
+                        val disposable = responseSingle.subscribeOn(Schedulers.io())
+                            .observeOn(AndroidSchedulers.mainThread())
+                            .subscribe({ searchResponse ->
+                                Log.d(
+                                    TAG,
+                                    "onCreateOptionsMenu: searchResponse = " + Gson().toJson(
+                                        searchResponse
+                                    )
+                                )
 
-                        productsAdapter.removeAll()
+                                lastSearchResponse = searchResponse
 
-                        if (searchResponse.searchQuery.isEmpty()) {
-                            fragmentBinding.tvMessageStartTyping.visibility = View.VISIBLE
-                            fragmentBinding.tvErrorMessage.visibility = View.GONE
-                            fragmentBinding.rvProducts.visibility = View.GONE
-                            fragmentBinding.fabScrollTop.visibility = View.GONE
-                        } else {
-                            fragmentBinding.tvMessageStartTyping.visibility = View.GONE
-                            fragmentBinding.tvErrorMessage.visibility = View.GONE
-                            fragmentBinding.rvProducts.visibility = View.VISIBLE
-                            fragmentBinding.rvProducts.scrollToPosition(0)
+                                fragmentBinding.loadingIndicator.visibility = View.GONE
+                                fragmentBinding.tvMessageStartTyping.visibility = View.GONE
+                                fragmentBinding.tvErrorMessage.visibility = View.GONE
+                                fragmentBinding.rvProducts.visibility = View.VISIBLE
+                                fragmentBinding.rvProducts.scrollToPosition(0)
 
-                            if (searchResponse.products.isEmpty()) {
+                                productsAdapter.setSearchTerm(searchResponse.searchQuery)
+                                productsAdapter.setItems(searchResponse.products)
+
+                                if (searchResponse.products.isEmpty()) {
+                                    fragmentBinding.rvProducts.visibility = View.GONE
+                                    fragmentBinding.fabScrollTop.visibility = View.GONE
+                                    fragmentBinding.tvErrorMessage.visibility = View.VISIBLE
+                                    fragmentBinding.tvErrorMessage.setText(R.string.no_products_found)
+                                } else {
+                                    loadMore()
+                                }
+                            }, { e: Throwable? ->
+                                Log.e(TAG, "onCreateOptionsMenu: ", e)
+
+                                fragmentBinding.loadingIndicator.visibility = View.GONE
+                                fragmentBinding.tvMessageStartTyping.visibility = View.GONE
                                 fragmentBinding.rvProducts.visibility = View.GONE
                                 fragmentBinding.fabScrollTop.visibility = View.GONE
                                 fragmentBinding.tvErrorMessage.visibility = View.VISIBLE
-                                fragmentBinding.tvErrorMessage.setText(R.string.no_products_found)
-                            } else {
-                                productsAdapter.setSearchTerm(searchResponse.searchQuery)
-                                productsAdapter.addItems(searchResponse.products)
-
-                                loadMore()
-                            }
-                        }
-                    }) { e: Throwable? ->
-                        Log.e(TAG, "onCreateOptionsMenu: ", e)
-
-                        fragmentBinding.loadingIndicator.visibility = View.GONE
-                        fragmentBinding.rvProducts.visibility = View.GONE
-                        fragmentBinding.tvMessageStartTyping.visibility = View.GONE
-                        fragmentBinding.tvErrorMessage.visibility = View.VISIBLE
-                        fragmentBinding.tvErrorMessage.setText(R.string.error_occurred)
+                                fragmentBinding.tvErrorMessage.setText(R.string.error_occurred)
+                            })
+                        compositeDisposable.add(disposable)
                     }
-                compositeDisposable.add(disposable)
+                }
 
-            }) { e: Throwable? ->
+            }, { e: Throwable? ->
                 Log.e(TAG, "onCreateOptionsMenu: ", e)
 
                 fragmentBinding.loadingIndicator.visibility = View.GONE
-                fragmentBinding.rvProducts.visibility = View.GONE
                 fragmentBinding.tvMessageStartTyping.visibility = View.GONE
+                fragmentBinding.rvProducts.visibility = View.GONE
+                fragmentBinding.fabScrollTop.visibility = View.GONE
                 fragmentBinding.tvErrorMessage.visibility = View.VISIBLE
                 fragmentBinding.tvErrorMessage.setText(R.string.error_occurred)
-            }
+            })
         compositeDisposable.add(queryDisposable)
     }
 
@@ -207,12 +219,12 @@ class ProductsFragment : Fragment() {
     private fun getMoreProducts(query: String) {
         fragmentBinding.loadingIndicator.visibility = View.VISIBLE
 
-        val responseObservable = productsRepository.searchProducts(
+        val responseSingle = productsRepository.searchProductsAPI(
             query, offset, limit
         )
-        val disposable = responseObservable.subscribeOn(Schedulers.io())
+        val disposable = responseSingle.subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
-            .subscribe({ searchResponse: SearchResponse ->
+            .subscribe({ searchResponse ->
                 Log.d(TAG, "getMoreProducts: searchResponse = " + Gson().toJson(searchResponse))
 
                 fragmentBinding.loadingIndicator.visibility = View.GONE
@@ -232,11 +244,11 @@ class ProductsFragment : Fragment() {
 
                     productsAdapter.addItems(searchResponse.products)
                 }
-            }) { e: Throwable? ->
+            }, { e: Throwable? ->
                 Log.e(TAG, "getMoreProducts: ", e)
 
                 fragmentBinding.loadingIndicator.visibility = View.GONE
-            }
+            })
         compositeDisposable.add(disposable)
     }
 

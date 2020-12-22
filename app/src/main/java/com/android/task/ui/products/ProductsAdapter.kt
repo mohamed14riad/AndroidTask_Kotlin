@@ -23,20 +23,29 @@ class ProductsAdapter(private val mContext: Context) :
     private var searchTerm: String? = null
     private val products: MutableList<Product?>
 
-    private val VIEW_TYPE_ITEM = 1
-    private val VIEW_TYPE_LOADING = 2
+    companion object {
+        private const val VIEW_TYPE_ITEM = 1
+        private const val VIEW_TYPE_LOADING = 2
+    }
 
     init {
         products = ArrayList()
     }
 
-    fun setSearchTerm(searchTerm: String?) {
+    fun setSearchTerm(searchTerm: String) {
         this.searchTerm = searchTerm
     }
 
-    fun addItems(products: List<Product?>) {
+    fun setItems(products: List<Product?>) {
+        this.products.clear()
         this.products.addAll(products)
         notifyDataSetChanged()
+    }
+
+    fun addItems(products: List<Product?>) {
+        val previousSize = this.products.size
+        this.products.addAll(products)
+        notifyItemRangeInserted(previousSize, products.size)
     }
 
     fun getItem(index: Int): Product? {
@@ -53,12 +62,6 @@ class ProductsAdapter(private val mContext: Context) :
             products.removeAt(index)
             notifyItemRemoved(index)
         }
-    }
-
-    fun removeAll() {
-        searchTerm = null
-        products.clear()
-        notifyDataSetChanged()
     }
 
     override fun getItemViewType(position: Int): Int {
